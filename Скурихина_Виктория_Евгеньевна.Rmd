@@ -1,0 +1,163 @@
+---
+title: "Скурихина ВЕ"
+author: "Скурихина ВЕ"
+date: "2025-04-13"
+output: html_document
+---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r}
+#install.packages("rmarkdown")
+#install.packages("ggplot2")
+#install.packages("tidyverse")
+#install.packages("readxl")
+#install.packages("ggpubr")
+library(ggpubr)
+library(readxl)
+library(tidyverse)
+library(ggplot2)
+```
+
+
+```{r}
+pima <- read_excel(path = "S:/Download (S)/pima.xlsx")
+```
+
+```{r}
+head(pima)
+```
+
+```{r}
+pima$diabetes <- as.factor(pima$diabetes)
+```
+
+
+```{r}
+summary(pima$glucose)
+psych::describe(pima$glucose)
+
+```
+
+
+```{r}
+summary(pima$pressure)
+psych::describe(pima$glucose)
+```
+
+
+```{r}
+summary(pima$mass)
+psych::describe(pima$glucose)
+
+```
+```{r}
+psych::describe(pima$diabetes)
+```
+
+
+```{r}
+table(pima$diabetes)
+
+prop.table(table(pima$diabetes))
+
+```
+```{r}
+pima$age_group <- cut(
+  pima$age,
+  breaks = c(20, 35, 49, Inf),  # Границы интервалов: 21–35, 36–49, 50+
+  labels = c("21–35", "36–49", "50+"),  # Названия групп
+  right = TRUE,  # Интервалы включают правую границу (35, 49)
+  include.lowest = TRUE  # Включаем минимальное значение (20)
+)
+```
+
+```{r}
+
+head(pima)
+```
+
+
+
+```{r}
+table(pima$age_group)
+prop.table(table(pima$age_group))
+
+```
+```{r}
+ggplot(pima, aes(x=diabetes, y=glucose, fill=diabetes)) + 
+  geom_boxplot(alpha=0.3) +
+  theme(legend.position="none") +
+  labs(
+    title = "",
+    subtitle = "",
+    x = "Наличие диабета",       
+    y = "Уровень глюкозы (mg/dL)", 
+    fill = "Диабет"              
+  )+
+  scale_fill_brewer(palette="Set3")
+```
+
+
+
+```{r}
+set.seed(42) 
+sample_size <- 30
+s_pressure_0 <- 145
+s_pressure_1 <- 120
+
+
+s_pressure_before <- round(rnorm(sample_size, mean = 150, sd = 10),0)
+
+s_pressure_after <- round(rnorm(sample_size, mean = 135, sd = 10),0)
+
+
+data <- data.frame(
+  patient_id = 1:sample_size,
+  s_pressure_before,
+  s_pressure_after 
+)
+```
+
+```{r}
+data
+```
+
+```{r}
+library(ggpubr)
+
+ggpaired(data, 
+         cond1 = "s_pressure_before", 
+         cond2 = "s_pressure_after",
+         color = "condition", 
+         palette = c("red", "lightgreen"),
+         line.color = "gray") +
+  stat_compare_means(paired = TRUE, method = "t.test") +
+  labs(title = "Сравнение давления до и после лечения")
+```
+
+
+
+
+Нулевая гипотеза (H₀):
+Новый препарат не влияет на давление. Средняя разница между давлением до и после равна нулю.
+
+Альтернативная гипотеза (H₁):
+Новый препарат снижает давление. Средняя разница до и после отрицательна.
+
+Выбираем классический уровень значимости:0.05
+
+Так как данные количественные (давление), распределение близко к нормальному (по условию генерации через rnorm), выборки зависимые (измерения до и после для одних и тех же пациентов), то используем парный t-тест.
+
+
+```{r}
+res <- t.test(data$s_pressure_after, data$s_pressure_before, paired = TRUE)
+res
+```
+Итак, p < 0,001. Принимаем альтернативную гипотезу: Новый препарат снижает давление. Средняя разница до и после отрицательна.
+
+
