@@ -1,0 +1,196 @@
+---
+title: "ДЗ 2. Линейная и логистическая регрессия, расчет выборки"
+author: "Скурихина В.Е."
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
+library(tidyverse)
+library(broom)
+```
+
+## 1. Загрузка и предобработка данных
+
+```{r load-data}
+bc <- read_csv("wisconsin_breast_cancer.csv") %>%
+  mutate(
+    diagnosis = ifelse(diagnosis == "M", 1, 0)  # M → 1, B → 0
+  )
+
+glimpse(bc)
+```
+
+## 2. Линейные модели
+
+### 2.1. Модель area_mean \~ radius_mean
+
+```{r lm-area}
+lm_area <- lm(area_mean ~ radius_mean, data = bc)
+tidy(lm_area)
+glance(lm_area)
+```
+
+```{r plot-area}
+ggplot(bc, aes(x = radius_mean, y = area_mean)) +
+  geom_point(alpha = 0.5) +
+  geom_smooth(method = "lm") +
+  labs(
+    title = "area_mean ~ radius_mean",
+    x = "Средний радиус",
+    y = "Средняя площадь"
+  ) +
+  theme_minimal()
+```
+
+> **Комментарий.** Видим сильную положительную линейную связь, p-value \< 0.001).
+
+### 2.2. Модель perimeter_mean \~ radius_mean
+
+```{r lm-perim}
+lm_perim <- lm(perimeter_mean ~ radius_mean, data = bc)
+tidy(lm_perim)
+glance(lm_perim)
+```
+
+```{r plot-perim}
+ggplot(bc, aes(x = radius_mean, y = perimeter_mean)) +
+  geom_point(alpha = 0.5) +
+  geom_smooth(method = "lm") +
+  labs(
+    title = "perimeter_mean ~ radius_mean",
+    x = "Средний радиус",
+    y = "Средний периметр"
+  ) +
+  theme_minimal()
+```
+
+> **Комментарий.** Аналогично — очень сильная линейная связь p \< 0.001.
+
+### 2.3. Модель symmetry_mean \~ radius_mean
+
+```{r lm-sym}
+lm_sym <- lm(symmetry_mean ~ radius_mean, data = bc)
+tidy(lm_sym)
+glance(lm_sym)
+```
+
+```{r plot-sym}
+ggplot(bc, aes(x = radius_mean, y = symmetry_mean)) +
+  geom_point(alpha = 0.5) +
+  geom_smooth(method = "lm") +
+  labs(
+    title = "symmetry_mean ~ radius_mean",
+    x = "Средний радиус",
+    y = "Средняя симметрия"
+  ) +
+  theme_minimal()
+```
+
+> **Комментарий.** Здесь связь гораздо слабее (R² = 0.02, но все же статистически значима.
+
+## 3. Одномерные логистические модели
+
+### 3.1. diagnosis \~ radius_mean
+
+```{r glm-rad}
+glm_rad <- glm(diagnosis ~ radius_mean, data = bc, family = binomial)
+tidy(glm_rad, exponentiate = TRUE, conf.int = TRUE)
+```
+
+```{r plot-log-rad}
+new_rad <- tibble(radius_mean = seq(min(bc$radius_mean), max(bc$radius_mean), length.out = 200))
+new_rad <- new_rad %>% mutate(
+  p = predict(glm_rad, newdata = new_rad, type = "response")
+)
+
+ggplot(new_rad, aes(x = radius_mean, y = p)) +
+  geom_line() +
+  labs(
+    title = "Вероятность M от radius_mean",
+    x = "Средний радиус",
+    y = "P(злокач.)"
+  ) +
+  theme_minimal()
+```
+
+### 3.2. diagnosis \~ area_mean
+
+```{r glm-area}
+glm_area <- glm(diagnosis ~ area_mean, data = bc, family = binomial)
+tidy(glm_area, exponentiate = TRUE, conf.int = TRUE)
+```
+
+```{r plot-log-area}
+new_area <- tibble(area_mean = seq(min(bc$area_mean), max(bc$area_mean), length.out = 200))
+new_area <- new_area %>% mutate(
+  p = predict(glm_area, newdata = new_area, type = "response")
+)
+
+ggplot(new_area, aes(x = area_mean, y = p)) +
+  geom_line() +
+  labs(
+    title = "Вероятность M от area_mean",
+    x = "Средняя площадь",
+    y = "P(злокач.)"
+  ) +
+  theme_minimal()
+```
+
+### 3.3. diagnosis \~ texture_mean
+
+```{r glm-texture}
+glm_tex <- glm(diagnosis ~ texture_mean, data = bc, family = binomial)
+tidy(glm_tex, exponentiate = TRUE, conf.int = TRUE)
+```
+
+```{r plot-log-texture}
+new_tex <- tibble(texture_mean = seq(min(bc$texture_mean), max(bc$texture_mean), length.out = 200))
+new_tex <- new_tex %>% mutate(
+  p = predict(glm_tex, newdata = new_tex, type = "response")
+)
+
+ggplot(new_tex, aes(x = texture_mean, y = p)) +
+  geom_line() +
+  labs(
+    title = "Вероятность M от texture_mean",
+    x = "Средняя текстура",
+    y = "P(злокач.)"
+  ) +
+  theme_minimal()
+```
+
+## 4. Многомерная логистическая модель
+
+```{r}
+glm_multi <- glm(diagnosis ~ radius_mean + area_mean + texture_mean,
+                 data = bc, family = binomial)
+tidy(glm_multi, exponentiate = TRUE, conf.int = TRUE)
+```
+
+> **Комментарий.** При учете всех факторов в одной модели единственным значимым предиктором выступает texture_mean, остальные два — radius_mean и area_mean — не дают статистически достоверного вклада.Направление положительное, статистически значимо. Каждый прирост texture_mean на единицу увеличивает шансы злокачественного диагноза примерно на 23 %.
+
+## 5. Расчет выборки для регрессии Кокса
+
+```{r sample-size}
+alpha    <- 0.05
+beta     <- 0.20
+Z_alpha2 <- qnorm(1 - alpha/2)   # ≈ 1.96
+Z_beta   <- qnorm(1 - beta)      # ≈ 0.84
+
+HR  <- 2
+p1  <- 0.5
+p2  <- 0.5
+d   <- 0.8
+
+n1 <- (Z_alpha2 + Z_beta)^2 / (p1 * p2 * (log(HR))^2 * d)
+n2 <- n1
+n_total <- n1 + n2
+
+n1 <- ceiling(n1)
+n2 <- ceiling(n2)
+n_total <- n1 + n2
+
+cat("n1 =", n1, "\nn2 =", n2, "\nВсего =", n_total)
+```
